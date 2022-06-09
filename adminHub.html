@@ -1,0 +1,375 @@
+﻿<!--
+//---------------------------------------------------------------------
+// <copyright file="admin_hub.html">
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// </copyright>
+// <summary>The form for admini  tempaltes in the admin hub .</summary>
+//---------------------------------------------------------------------
+-->
+
+<!DOCTYPE html>
+<html ng-app="ExportQuery.AdminHub">
+<head>
+    <title>Enhanced Export Admin Hub</title>
+    <link rel="stylesheet" href="css/app.css" />
+    <script src="sdk/scripts/jquery_2.1.4.min.js"></script>
+    <script src="sdk/scripts/q.js"></script>
+
+    <script src="sdk/scripts/angular_1.3.14.min.js"></script>
+
+    <script src="sdk/scripts/VSS.SDK.js"></script>
+    <script src="scripts/common.js" ></script>
+    <script src="scripts/serviceTemplates.js" ></script>
+    <script type="text/javascript">
+        try{
+            var appInsights=window.appInsights||function(config){
+                function r(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},u=document,e=window,o="script",s=u.createElement(o),i,f;for(s.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",u.getElementsByTagName(o)[0].parentNode.appendChild(s),t.cookie=u.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)r("track"+i.pop());return r("setAuthenticatedUserContext"),r("clearAuthenticatedUserContext"),config.disableExceptionTracking||(i="onerror",r("_"+i),f=e[i],e[i]=function(config,r,u,e,o){var s=f&&f(config,r,u,e,o);return s!==!0&&t["_"+i](config,r,u,e,o),s}),t
+            }({
+                instrumentationKey: "89108475-3065-4c94-af03-5a64c85e332b"
+            });
+
+            window.appInsights=appInsights;
+            appInsights.trackPageView("EnhancedExport.AdminHub");
+        }
+        catch (ex) {
+
+        }
+
+    </script>
+
+</head>
+<body class="TemplateAdmin">
+    <script type="text/javascript">
+        var url = "";
+        var selectedTemplateName = "";
+
+        // Initialize the VSS sdk
+        VSS.init({
+            usePlatformScripts: true,
+            usePlatformStyles: true,
+            explicitNotifyLoaded: true,
+        });
+
+        // Wait for the SDK to be initialized
+        VSS.ready(function () {
+
+            VSS.require("VSS/Controls", function (controls) { });
+            // Parse the query string from iframe
+            var query = {};
+            url = window.location.href;
+
+            // Remove the ?
+            var queryString = window.location.search.substring(1);
+
+            // Decode each parameter
+            var queryStringParams = queryString.split("&");
+            queryStringParams.forEach(function (val) {
+                var param = val.split('=');
+                query[decodeURIComponent(param[0])] = decodeURIComponent(param[1]);
+            });
+
+            // Figure out the template
+            selectedTemplateName = query.Template;
+            VSS.notifyLoadSucceeded();
+        });
+
+        var app = angular.module('ExportQuery.AdminHub', ['ExportQuery.services']);
+
+        //Scope added to force refresh in DoneLoading - Shouldnt be needed...
+        //app.controller("TemplateAdminController", ['$scope', '$http', 'TemplateService', function ($scope, $http, TemplateService) {
+        app.controller("TemplateAdminController", ['$scope', '$http', 'TemplateService', function ($scope, $http, TemplateService) {
+            var ctrl = this;
+            this.Templates = [];
+            this.selectedTemplate = {};
+            this.ErrorMsg = "";
+            this.InfoMsg = "";
+            this.KnownServices = [
+                { id: "WorkItemQuery", DisplayName: "Work Item Queries" },
+                { id: "TestPlan", DisplayName: "Test Plan" },
+            ];
+
+            this.SelectTemplate = function (template) {
+                ctrl.selectedTemplate = template;
+            };
+
+            this.trackEvent = function (event, data) {
+                try {
+                    window.appInsights.trackEvent(event, data);
+                }
+                catch (ex) {
+                }
+            };
+
+
+            this.AddTemplate = function (serviceName) {
+                var cnt = ctrl.Templates.filter(function (o) { return o.serviceName == serviceName && o.id.indexOf("New template") == 0 }).length;
+                cnt++;
+
+                var t = {
+                    id: "New template " + cnt,
+                    name: "New template " + cnt,
+                    serviceName: serviceName,
+                    description: "",
+                    template: ""
+                };
+
+                this.Templates.push(t);
+                this.SelectTemplate(t);
+            };
+
+            this.DeleteTemplate = function () {
+                this.trackEvent("EnhancedExport.Admin.Delete", ctrl.selectedTemplate.name);
+
+                ctrl.StartLoading();
+                
+                this.templateService.deleteTemplate(ctrl.selectedTemplate).then(function (templates) {
+                    ctrl.Templates.splice(ctrl.Templates.indexOf(ctrl.selectedTemplate), 1);
+                    ctrl.selectedTemplate = ctrl.Templates[0];
+                    ctrl.FlashInfoMsg("Deleted tamplate");
+                    ctrl.DoneLoading();
+                    ctrl.AngularRefresh();
+                
+                });
+            };
+
+            this.AngularRefresh = function () {
+                try { $scope.$apply(); } catch (err) { }
+            }
+
+            this.StartLoading = function () {
+                $("body").css("cursor", "progress");
+            }
+
+            this.DoneLoading = function () {
+               
+                $("body").css("cursor", "default");
+            }
+
+            this.FlashInfoMsg = function(msg){
+                ctrl.InfoMsg = msg;
+                ctrl.AngularRefresh();
+                setTimeout(function () {
+                    ctrl.InfoMsg = "";
+                    ctrl.AngularRefresh();
+                }, 3000);
+            }
+
+            this.Save = function () {
+                this.trackEvent("EnhancedExport.Admin.Save", ctrl.selectedTemplate.name);
+                ctrl.StartLoading();
+
+                // Validate 
+                ctrl.ErrorMsg = "";
+                if (ctrl.selectedTemplate.scope === "Default") {
+                    ctrl.ErrorMsg = "You can not overwrite default templates, select a scope and save again";
+                }
+             
+                try {
+                    var dummy = jQuery.parseXML(ctrl.selectedTemplate.template);
+                }
+                catch (parseError) {
+                    ctrl.ErrorMsg = "Template is not valid format: " + parseError;
+                }
+                if (ctrl.ErrorMsg == "") {
+                    this.templateService.saveTemplate(ctrl.selectedTemplate, $http).then(function (result) {
+                        ctrl.FlashInfoMsg("Saved template sucessfully");
+                        ctrl.selectedTemplate.unSaved = "";
+                        ctrl.DoneLoading();
+                        ctrl.AngularRefresh();
+
+                    },
+                    function (err) {
+                        if (err.description != null) {
+                            ctrl.ErrorMsg = "Error saving template " + err.description;
+                        }
+                        else {
+                            ctrl.ErrorMsg = err;
+                        }
+                        ctrl.AngularRefresh();
+                    });
+                }
+            };
+        
+            this.ExportJSON= function () {
+                var a = document.body.appendChild(
+                    document.createElement("a")
+                );
+                
+                a.download = "Templates" + ".json";
+                var data=[];
+                ctrl.KnownServices.forEach(function (s) {
+                    var td={
+                        id: s.id,
+                        templates: ctrl.Templates.filter(
+                            function(i){ return s.id==i.serviceName;})
+                    };
+                    data.push(td);
+                });
+                a.href = "data:text/doc;base64," + btoa(JSON.stringify(data));
+                a.innerHTML = "download";
+                a.click();
+                delete a;
+            }
+
+
+            this.LoadTemplates = function () {
+
+                var serviceRemaining2Load = ctrl.KnownServices.length;
+                ctrl.KnownServices.forEach(function (s) {
+                
+                    ctrl.templateService.loadTemplates(s.id, true, $http).then(
+                        function (templates) {
+                            ctrl.Templates = ctrl.Templates.concat(templates);
+                            serviceRemaining2Load--;
+                            if(serviceRemaining2Load==0){
+                                ctrl.selectedTemplate = ctrl.Templates[0];
+                                ctrl.DoneLoading();
+                                ctrl.AngularRefresh();
+                            }
+                        }, 
+                        function (err) {
+                            
+                            serviceRemaining2Load--;
+                            if(serviceRemaining2Load==0){
+                                ctrl.DoneLoading();
+                            }
+                        });
+                })
+
+                
+            };
+
+            this.setToutched = function()
+            {
+                ctrl.selectedTemplate.unSaved = "*";
+            }
+
+            ctrl.StartLoading();
+            ctrl.BrowserSupportDataUriDownload = iframeDataURITest('data:;base64,');
+
+            if (!ctrl.BrowserSupportDataUriDownload) {
+                ctrl.ExportToolTip = "Your browser doesent support this capbability";
+            }
+
+            ctrl.templateService = TemplateService;
+            ctrl.templateService.init().then(function (service) {
+                ctrl.LoadTemplates();
+            });
+            
+            VSS.notifyLoadSucceeded();
+        }]);
+
+
+    </script>
+    <div>
+        <div class="hub-view explorer" ng-controller="TemplateAdminController as tmplCtrl">
+            <div class=" splitter horizontal hub-splitter">
+                <div class="leftPane">
+
+                    <br />
+
+                    <div class="left-hub-content">
+                        <div style="margin-left:20px;">
+                            <b>Export templates for:</b>
+                            <br />
+                            <ul style=" margin-left:0px;">
+                                <li ng-repeat="s in tmplCtrl.KnownServices track by $index">
+                                    <b>{{s.DisplayName}}</b>
+                                    <ul style=" margin-left:10px;">
+                                        <li>
+                                            Project
+                                            <ul>
+                                                <li ng-repeat="t in tmplCtrl.Templates| filter:{serviceName:s.id, scope:'Project'} track by $index" ng-class="{selected: t.id === tmplCtrl.selectedTemplate.id && t.serviceName === tmplCtrl.selectedTemplate.serviceName && tmplCtrl.selectedTemplate.scope==='Project'}">
+                                                    <a ng-click="tmplCtrl.SelectTemplate(t)"> {{t.unSaved}} {{t.name}}</a>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            Collection
+                                            <ul>
+                                                <li ng-repeat="t in tmplCtrl.Templates| filter:{serviceName:s.id, scope:'Collection'} track by $index" ng-class="{selected: t.id === tmplCtrl.selectedTemplate.id && t.serviceName === tmplCtrl.selectedTemplate.serviceName && tmplCtrl.selectedTemplate.scope==='Collection'}">
+                                                    <a ng-click="tmplCtrl.SelectTemplate(t)"> {{t.unSaved}} {{t.name}}</a>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                        <li>
+                                            Default
+                                            <ul>
+                                                <li ng-repeat="t in tmplCtrl.Templates| filter:{serviceName:s.id, scope:'Default'} track by $index" ng-class="{selected: t.id === tmplCtrl.selectedTemplate.id && t.serviceName === tmplCtrl.selectedTemplate.serviceName && tmplCtrl.selectedTemplate.scope==='Default'}">
+                                                    <a ng-click="tmplCtrl.SelectTemplate(t)"> {{t.unSaved}} {{t.name}}</a>
+                                                </li>
+                                            </ul>
+                                        </li>
+                                    </ul>
+                                    <br />
+                                    <a ng-href ng-click="tmplCtrl.AddTemplate(s.id)" style="margin-left:0px;">Add template</a>
+                                    <hr />
+                                </li>
+
+                            </ul>
+                            <button ng-click="tmplCtrl.ExportJSON()" ng-disabled="!tmplCtrl.BrowserSupportDataUriDownload" title="{{ctrl.ExportToolTip}}">Export all templates</button>
+                        </div>
+                    </div>
+                </div>
+                <div class="handleBar"></div>
+                <div class="rightPane">
+                    <div class="hub-title">{{tmplCtrl.selectedTemplate.name}}</div>
+                    <div class="right-hub-content" style="display:flex; flex-direction:column;padding-left:20px;">
+                        <div class="message-area-control closeable info-message" style="max-height:50px; overflow:hidden" ng-show="tmplCtrl.InfoMsg!=''">{{tmplCtrl.InfoMsg}}</div>
+                        <div class="message-area-control closeable error-message" style="max-height:50px; overflow:hidden" ng-show="tmplCtrl.ErrorMsg!=''">{{tmplCtrl.ErrorMsg}}</div>
+<div id="previewHTML" style="flex:1;width:100%;overflow:auto">
+
+                            <ng-form name="frmTemplate">
+                                <div style="display: table; height:100%;width:100%; border-spacing: 6px; vertical-align:top">
+                                    <div style="display: table-row;">
+                                        <div class="tableCell">Name:</div>
+                                        <div class="tableCell"><input id="name" ng-model="tmplCtrl.selectedTemplate.name" ng-change="tmplCtrl.setToutched()" required style="width:300px;"/></div>
+                                    </div>
+
+                                    <div style="display: table-row;">
+                                        <div class="tableCell">Id:</div>
+                                        <div class="tableCell"><input id="id" ng-model="tmplCtrl.selectedTemplate.id" ng-change="tmplCtrl.setToutched()" required /></div>
+                                    </div>
+                                    <div style="display: table-row;">
+                                        <div class="tableCell">Scope:</div>
+                                        <div class="tableCell">
+                                            <select id="scope" ng-model="tmplCtrl.selectedTemplate.scope" ng-change="tmplCtrl.setToutched()" required>
+                                                <option>Project</option>
+                                                <option>Collection</option>
+                                            </select>
+                                        </div>
+                                    </div>
+                                    <div style="display: table-row;">
+                                        <div class="tableCell">Description:</div>
+                                        <div class="tableCell" ><textarea cols=" 50" rows="3" ng-model="tmplCtrl.selectedTemplate.description" ng-change="tmplCtrl.setToutched()"></textarea></div>
+                                    </div>
+                                    <div style="display: table-row;">
+                                        <div class="tableCell">Doc type:</div>
+                                        <div class="tableCell"><input ng-model="tmplCtrl.selectedTemplate.docType" ng-change="tmplCtrl.setToutched()" /></div>
+                                    </div>
+                                    <div style="display: table-row; height :100%">
+                                        <div class="tableCell">Template (Raw XSLT):</div>
+                                        <div class="tableCell" style="width:100%"><textarea style=" width: 100%; height: 100%; min-height:400px;" ng-model="tmplCtrl.selectedTemplate.template" ng-change="tmplCtrl.setToutched()"></textarea></div>
+                                    </div>
+                                </div>
+                            </ng-form>
+                        </div>
+                        <div id="footer" style="width:100%;text-align:right;height:60px;">
+                            <hr />
+                            <button ng-click="tmplCtrl.Save()">Save</button>
+                            <button ng-click="tmplCtrl.DeleteTemplate()">Delete</button>
+                        </div>
+                        </div>
+                </div>
+            </div>
+        </div>
+    </div>
+    
+
+</body>
+</html>
+

@@ -1,0 +1,61 @@
+﻿<!DOCTYPE html>
+<html>
+<head>
+    <link data-bundlename="commoncss" data-highcontrast="https://cdn.vsassets.io/v/20160822T132622/_cssbundles/Default/vss-bundle-commoncss-vVCkkAhDMLG4mQxLqZ5iaIa8t9eXwV_4-sZZ064PUwOE=" data-includedstyles="Gallery3rdParty;Gallery" href="https://cdn.vsassets.io/v/20160822T132622/_cssbundles/Default/vss-bundle-commoncss-vVCkkAhDMLG4mQxLqZ5iaIa8t9eXwV_4-sZZ064PUwOE=" rel="stylesheet" />
+    <link data-bundlename="viewcss" data-highcontrast="https://cdn.vsassets.io/v/20160822T132622/_cssbundles/Default/vss-bundle-viewcss-vaPcbJELQV1lEWlD6Up4oZqX0PJofGodoY8I1noNvrSU=" data-includedstyles="jQueryUI-Modified;VSS.Controls" href="https://cdn.vsassets.io/v/20160822T132622/_cssbundles/Default/vss-bundle-viewcss-vaPcbJELQV1lEWlD6Up4oZqX0PJofGodoY8I1noNvrSU=" rel="stylesheet" />
+    <style>
+        
+    </style>
+    <title>Enhanced Export FAQ</title>
+</head>
+<body>
+    <div class="main-content item-details-main-content" id="1" data-bind="template: { name: 'item-details-view-template' }">
+        <div class="item-details-control-root">
+         
+            <div class="ux-item-details">
+  
+                <div class="gallery-centered-content">
+                    <div class="ux-section-details">
+                        <table class="ux-section-details-table">
+                            <tbody>
+                                <tr>
+                                    <td class="ux-itemdetails-left">
+                                        <div class="markdown" data-bind="html: itemDetailsContent">
+                                            <p><a href="https://twitter.com/intent/tweet?screen_name=MattiasSkold" target="_blank" rel="noreferrer noopener"><img alt="Tweet to @mattiasskold" src="https://mskold.gallery.vsassets.io/_apis/public/gallery/publisher/mskold/extension/mskold-enhanced-export/1.2.0.24/assetbyname/images/twitter_mattiasskold.png"></a>  <a href="mailto://extension-support@mskold.com" target="_blank" rel="noreferrer noopener"><img alt="Mail to support" src="https://mskold.gallery.vsassets.io/_apis/public/gallery/publisher/mskold/extension/mskold-enhanced-export/1.2.0.24/assetbyname/images/mail_to_support.png"></a>  <a href="https://www.paypal.me/mskold/5Eur" target="_blank" rel="noreferrer noopener"><img alt="Donate" src="https://mskold.gallery.vsassets.io/_apis/public/gallery/publisher/mskold/extension/mskold-enhanced-export/1.2.0.24/assetbyname/images/PayPal_donate.png"></a></p>
+                                            <h1>Enhanced Export FAQ </h1>
+                                            <h2>Why can't I copy export every template to Excel?</h2>
+                                            <p>
+                                                The HTML support in office is quite basic, and Excel simply don't understand modern HTML. Then designing templates you have to choose between optimizing for layout or optimizing for exporting to excel.
+                                            </p>
+
+                                            <h2>Excel prompts me "The file format and extension of ... coruppt or unsafe..."</h2>
+                                            <p>
+                                                The prompt/message from Excel is dependent on a client setting in excel called <b>Extension Hardening</b>. <br />
+                                                You can turn it of by updating your local registry under <blockquote>HKEY_CURRENT_USER\Software\Microsoft\Office\[OfficeVersionNumber]\Excel\Security\ExtensionHardening=0</blockquote> Please refer to https://support.microsoft.com/en-us/kb/948615 for a more detailed description
+                                                </p>
+
+                                            <h2>Excel starts but doesnt open a new window/the file</h2>
+                                            <p>
+                                                Yet another of Excels "security" features, if you have installed <a href="https://support.microsoft.com/en-us/kb/3115262">KB3115262 </a> <b>Excel by default blocks you from opening files originating from Internet.</b> </br>
+                                            To allow Excel to open files originating from internet :
+                                                <blockquote>
+                                                    <ol>
+                                                        <li>Open Excel Go to File Options</li>
+                                                        <li>Click Trust Center -> Trust Center Settings</li>
+                                                        <li>Go to Protected View. there are 3 options that shows</li>
+                                                        <li>Uncheck the first option that reads -- "Enable Protected View for files originating from the Internet"</li>
+</ol>
+                                                        </blockquote>
+                                            </p>
+                                    </td>
+                                    
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                </div>
+            </div>
+        </div>
+    </div>
+</body>
+</html>

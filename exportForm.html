@@ -1,0 +1,472 @@
+<!-- 
+//---------------------------------------------------------------------
+// <copyright file="exportForm.html">
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF 
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED 
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A 
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// </copyright>
+// <summary>The form for rendering exports .</summary>
+//---------------------------------------------------------------------
+-->
+<!DOCTYPE html>
+<html style="background-color:inherit;height:100%;" ng-app="ExportQuery">
+<head>
+    <title>Enhanced Export</title>
+    <link rel="stylesheet" href="css/app.css" />
+
+
+    <script src="sdk/scripts/jquery_2.1.4.min.js"></script>
+    <script src="sdk/scripts/q.js"></script>
+    <script src="sdk/scripts/angular_1.3.14.min.js"></script>  
+    <script src="scripts/jQuery.md5.js"></script>
+   
+    <script src="sdk/scripts/VSS.SDK.js"></script>
+    <script src="scripts/common.js"></script>
+    <script src="scripts/query-fetcher.js"></script>
+    <script src="scripts/serviceWorkItemQuery.js"></script>
+    <script src="scripts/serviceTestPlan.js"></script>
+    <script src="scripts/serviceTemplates.js"></script>
+    <script src="scripts/xslt.js"></script>
+    <script type="text/javascript">
+        try{
+            var appInsights=window.appInsights||function(config){
+                function r(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},u=document,e=window,o="script",s=u.createElement(o),i,f;for(s.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",u.getElementsByTagName(o)[0].parentNode.appendChild(s),t.cookie=u.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)r("track"+i.pop());return r("setAuthenticatedUserContext"),r("clearAuthenticatedUserContext"),config.disableExceptionTracking||(i="onerror",r("_"+i),f=e[i],e[i]=function(config,r,u,e,o){var s=f&&f(config,r,u,e,o);return s!==!0&&t["_"+i](config,r,u,e,o),s}),t
+            }({
+                instrumentationKey: "89108475-3065-4c94-af03-5a64c85e332b"
+            });
+
+            window.appInsights=appInsights;
+            appInsights.trackPageView("EnhancedExport.ExportForm");
+        }
+        catch (err) {
+            console.log("Error initializing appInsights: " + err);
+            console.log("Nooping appInsights api");
+            var noop = function(m) { return function() { console.log("Ignoring appInsights methos call '" + m + "'"); }; };
+            window.appInsights = { trackEvent: noop("trackEvent"), setAuthenticatedUserContext: noop("setAuthenticatedUserContext"), trackPageView: noop("trackPageView"), trackEvent: noop("trackPageView") };
+        }
+    </script>
+    
+</head>
+
+<body style="background-color:inherit;height:100%;">
+
+    <script type="text/javascript">
+       
+
+        var hmlNormalizer;
+
+
+        function createCookie(name, value, days) {
+            var expires = "";
+            if (days) {
+                var date = new Date();
+                date.setTime(date.getTime() + (days * 24 * 60 * 60 * 1000));
+                expires = "; expires=" + date.toUTCString();
+            }
+            document.cookie = name + "=" + value + expires + "; path=/";
+        }
+
+        function readCookie(name) {
+            var nameEQ = name + "=";
+            var ca = document.cookie.split(';');
+            for (var i = 0; i < ca.length; i++) {
+                var c = ca[i];
+                while (c.charAt(0) == ' ') c = c.substring(1, c.length);
+                if (c.indexOf(nameEQ) == 0) return c.substring(nameEQ.length, c.length);
+            }
+            return null;
+        }
+
+        function PreviewTemplate(controller, template, data) {
+            if (data != null && template != null) {
+                console.log("Before Start loading");
+
+                controller.StartLoading(false);
+                try{
+                    console.log("Before Transform");
+                    var html = TransformXml(template.template, data)
+                }
+                catch (ex) {
+                    if(ex.description==="Automation server can't create object" ){
+                        controller.Error("Error renderign HTML, either mark "+ VSS.getExtensionContext().baseUri  + " as safe site, or adjust your security settings to allow activex scripting");
+                    }
+                    else{
+                        controller.Error("Error rendering output ", ex.description);
+                    }
+                }
+                controller.html = html;
+                console.log("Before setting preview html");
+
+                $("#previewHTML")[0].innerHTML = html;
+
+                console.log("Before Done loading");
+                controller.DoneLoading();
+            }
+        }
+
+        VSS.init({
+            explicitNotifyLoaded: true,
+            usePlatformScripts: true,
+            usePlatformStyles: true
+        });
+
+
+        var app = angular.module('ExportQuery', ['ExportQuery.services']);
+
+
+            //app.controller("TemplateController", ['$http', 'TemplateService', serviceName, function ($http, TemplateService, queryService) {
+        app.controller("TemplateController", ['$scope', '$http', '$injector', 'TemplateService',  function ($scope, $http, $injector, TemplateService) {
+                this.AdminUrl = "";
+                this.Templates = [];
+                this.selectedTemplate = null;
+                this.Preview = "Preview";
+                this.ResultXml
+                this.DoneLoadingTemplates = false;
+                this.DoneLoadingService = false;
+                this.ShowLoadingProgress = true;
+                this.ExportName = "";
+                this.BrowserSupportDataUriDownload = false;
+                this.ExportToolTip = "Opens the document in your associated program";
+                this.isCancelled = false;
+                this.ErrorMsg = "";
+                var ctrl = this;
+
+                this.trackEvent  = function (event, data){
+                    try{
+                        window.appInsights.trackEvent(event,data);
+                    }
+                    catch(ex){
+                    }
+                };
+
+
+                this.Refresh = function () {
+                    try{
+                        this.trackEvent("EnhancedExport.RedeingTemplate", this.selectedTemplate.name);
+
+                        var ctrl = this;
+
+                        PreviewTemplate(this, this.selectedTemplate, this.ResultXml);
+
+                        //Store   the template
+                        VSS.getService(VSS.ServiceIds.ExtensionData).then(function (dataService) {
+                            dataService.setValue(
+                                ctrl.dataService.ServiceName + "_DefaultTemplate",
+                                ctrl.selectedTemplate.id,
+                                { scopeType: "User" });
+                        });
+                    } catch (ex)
+                    {
+                        console.log("Refresh-Error: ");
+                        console.log(ex);
+                        console.log("XML: ");
+                        console.log((new XMLSerializer()).serializeToString(this.ResultXml));
+                        ctrl.Error("Applying template", ex);
+                    }
+
+                }
+
+                this.SetLoadingMessage = function (message) {
+                    ctrl.LoadingMessage = message;
+                }
+
+                this.CheckDoneLoading = function () {
+                    if (ctrl.DoneLoadingService && ctrl.DoneLoadingTemplates && ctrl.DoneLoadingUserDefaults) {
+                        ctrl.ShowLoadingProgress = false;
+                        if (ctrl._UserDefaultTemplate != null && ctrl._UserDefaultTemplate != "") {
+                            ctrl.selectedTemplate = ctrl.Templates.filter(function (i) { return i.id == ctrl._UserDefaultTemplate; })[0];
+
+                        }else{
+                            ctrl._UserDefaultTemplate= ctrl.Templates[0].id;
+                            ctrl.selectedTemplate = ctrl.Templates[0];
+                        }
+                        PreviewTemplate(ctrl, ctrl.selectedTemplate, ctrl.ResultXml);
+                        try { $scope.$apply(); } catch (err) { }
+                        ctrl.DoneLoading();
+                    }
+                    else {
+                        ctrl.ShowLoadingProgress = true;
+                    }
+                }
+
+                this.CopyHtml2Clipboard = function () {
+                    this.trackEvent("EnhancedExport.Copy2Clipboard", this.selectedTemplate.name);
+                    selectText($("#previewHTML")[0]);
+
+                    try {
+                        var successful = document.execCommand('copy');
+                        clipboard.setData("application/officeObj", selection.serialize());
+
+                        var msg = successful ? 'successful' : 'unsuccessful';
+                        console.log('Copying text command was ' + msg);
+                    } catch (err) {
+                        console.log('Oops, unable to copy');
+                    }
+                    alert('Document placed in clipboard!');
+                }
+
+                this.ExportHtml = function () {
+                    this.trackEvent("EnhancedExport.Export", this.selectedTemplate.name);
+                    var docType = ctrl.selectedTemplate.docType;
+                    docType = docType == null ? "doc" : docType;
+
+                    var s = document.getElementById('previewHTML').innerHTML;
+
+                    var metadata= $("#previewHTML").find("meta").toArray();
+                    var metaString="<meta charset='UTF-8' />";
+                    s=s.replace(new RegExp("&amp;FileName=", 'g'),  "&FileName=");
+                    var fileName = ctrl.ExportName + "." + docType;
+
+                    s= ConvertImage2Inline(s, $http);
+                    s= metaString + s;
+
+                    SaveFile(s, fileName, docType);
+
+                }
+
+
+
+                this.EmailHtml = function () {
+
+                    //This function doesnt work until we get support for SendMail in the SDK
+                    var template = "mailto:{emails}?subject={subject}&body={body}";
+
+                    var subjectLine = ctrl.ExportName + ".doc";
+                    var bodyText = document.getElementById('previewHTML').innerHTML;
+
+                    var emails = "";
+
+                    var emailLink = template.replace("{emails}", emails).replace("{subject}", subjectLine).replace("{body}", encodeURIComponent(bodyText));
+
+                    window.location.href(emailLink);
+
+                    //// define(["Admin/Scripts/TFS.Admin.SendMail"], function (AdminSendMail) {
+                    //VSS.require(["Admin/Scripts/TFS.Admin.SendMail"], function (AdminSendMail) {
+
+                    //    AdminSendMail.Dialogs.sendMail(new AdminSendMail.SendMailDialogModel({
+                    //        title: this._getDocumentTitle(),
+                    //        subject: this._getDocumentTitle(),
+                    //        body: bodyContent,
+                    //        useIdentityPickerForTo: true
+                    //    }), { cssClass: "export-as-html-email-dialogue", height: 800 });
+                    //});
+                }
+
+                this.PrintHtml = function () {
+                    this.trackEvent("EnhancedExport.Print", this.selectedTemplate.Name);
+                    var visheader = $("#templateSelector")[0].style.display;
+                    var visFooter = $("#footer")[0].style.display;
+                    $("#templateSelector")[0].style.display = 'none';
+                    $("#footer")[0].style.display = 'none';
+
+                    window.print();
+
+                    $("#footer")[0].style.display = visFooter;
+                    $("#templateSelector")[0].style.display = visheader;
+                }
+
+                this.StartLoading = function (longRunning, message) {
+                    $("body").css("cursor", "progress");
+                    $("#mainDiv").css("visibility", "hidden");
+
+
+                    if (longRunning) {
+                         if (ctrl.waitControl == null) {
+                             var waitControlOptions = {
+                                 target: $(".wait-control-target"),
+                                 message: message,
+                                 cancellable: true,
+                                 cancelTextFormat: "{0} to cancel",
+                                 cancelCallback: function () {
+                                     console.log("cancelled");
+                                 }
+                             };
+
+                             VSS.require(["VSS/Controls/StatusIndicator", "VSS/Controls"], function (StatusIndicator, Controls) {
+                                ctrl.waitControl = Controls.create(StatusIndicator.WaitControl, $("#previewHTML"), waitControlOptions);
+                                ctrl.waitControl.startWait();
+                            });
+                        }
+                        else {
+                            ctrl.waitControl.setMessage(message);
+                            ctrl.waitControl.startWait();
+                        }
+                    }
+
+                }
+
+              this.DoneLoading = function () {
+                    $("body").css("cursor", "default");
+                    $("#mainDiv")
+                        .css("visibility", "visible")
+                        .css("height","100%");
+
+                    if (ctrl.waitControl != null)
+                    {
+                        ctrl.waitControl.endWait();
+                    }
+
+                }
+
+                this.ProgressUpdate = function (message) {
+                    if (ctrl.waitControl != null) {
+                        ctrl.waitControl.setMessage(message);
+                        return !ctrl.waitControl.isCancelled();
+                    }
+                    else{
+                        return true;
+                    }
+                }
+
+                this.Error = function (caption, msg) {
+                    ctrl.ErrorMsg = ctrl.ErrorMsg + caption + msg +"<br/>";
+                }
+
+                VSS.ready(function () {
+
+                    
+                    $("#promoMsg-close").click(function (e) {
+                        $("#promoMsg").hide(600);
+                        createCookie("showMarketMsg", "false", 50);
+                    });
+
+                    var showMarketMsg = readCookie("showMarketMsg");
+                    if (showMarketMsg != "false") {
+                        $("#promoMsg").show(800);
+                    }
+                    else {
+                        $("#promoMsg").hide();
+                    }
+
+                    try{
+                        window.appInsights.setAuthenticatedUserContext(
+                        VSS.getWebContext().user.id,
+                        VSS.getWebContext().collection.id);
+                    }
+                    catch(ex){
+
+                    }
+                    VSS.require(["VSS/Utils/Html"], function (Utils_html) {
+
+                        hmlNormalizer = Utils_html.HtmlNormalizer
+
+                        var serviceName = VSS.getConfiguration().serviceName;
+
+                        ctrl.dataService = $injector.get(serviceName);
+                        ctrl.AdminUrl = getHubUrl("WorkItemExport.admin");
+
+                        ctrl.dataService.init(VSS.getConfiguration());
+                        ctrl.ExportName = ctrl.dataService.ExportName;
+
+
+
+                        ctrl.StartLoading(true, "Fetching data");
+
+                        ctrl.dataService.execute(ctrl.ProgressUpdate).then(function (xml) {
+                            ctrl.ProgressUpdate("Done fetching data");
+                            ctrl.ResultXml = xml;
+
+                            //Debug to help template authors pick up xml
+                            console.log("Fetched xml");
+                            console.log(ctrl.ResultXml);
+
+                            ctrl.DoneLoadingService = true;
+                            ctrl.CheckDoneLoading();
+                        }, function (error) {
+                            ctrl.DoneLoadingService = true;
+                            console.log("Error executing dataservice");
+                            console.log(error);
+                            ctrl.Error("Error loading data", error)
+                            ctrl.CheckDoneLoading();
+                        });
+
+
+                        //Get the users last choise
+                        VSS.getService(VSS.ServiceIds.ExtensionData).then(function (dataService) {
+
+                            dataService.getValue(ctrl.dataService.ServiceName + "_DefaultTemplate", { scopeType: "User" }).then(
+                                function (data) {
+                                ctrl._UserDefaultTemplate = data;
+                                ctrl.DoneLoadingUserDefaults = true;
+                                ctrl.CheckDoneLoading();
+                                },
+                                function (err) {
+                                    if (ctrl.Templates.length > 0) {
+                                        ctrl._UserDefaultTemplate = ctrl.Templates[0].id;
+                                    }
+                                    else {
+                                        ctrl._UserDefaultTemplate = "";
+                                    }
+
+                                    ctrl.DoneLoadingUserDefaults = true;
+                                    ctrl.CheckDoneLoading();
+                            });
+                        });
+
+                        TemplateService.init().then(function (service) {
+                            TemplateService.loadTemplates(ctrl.dataService.ServiceName, false, $http).then(function (templates) {
+                                ctrl.Templates = TemplateService.TemplateList;
+                                ctrl.DoneLoadingTemplates = true;
+                                try { $scope.$apply(); } catch (err) { }
+                                ctrl.CheckDoneLoading();
+                            }, function (error) {
+                                ctrl.DoneLoadingTemplates = true;
+                                ctrl.Error("Error loading tempaltes", error)
+                                ctrl.CheckDoneLoading();
+                            });
+
+                        });
+
+                        ctrl.BrowserSupportDataUriDownload = iframeDataURITest('data:;base64,');
+
+                        if (!ctrl.BrowserSupportDataUriDownload) {
+                            ctrl.ExportToolTip = "Your browser doesent support this capbability";
+                        }
+                    });
+
+                    VSS.notifyLoadSucceeded();
+
+            });
+        }]);
+
+    </script>
+
+    <div ng-controller="TemplateController as ctrl" style="display:flex; flex-direction:column;height:100%;" >
+        
+        <div class="message-area-control closeable error-message" style="max-height:80px; overflow-x:hidden; overflow-y:auto;" ng-show="ctrl.ErrorMsg!=''">{{ctrl.ErrorMsg}}</div>
+        
+         <div id="mainDiv" style="display:flex; flex-direction:column;height:40%;visibility:hidden;">
+            <div id="templateSelector" style="">
+                Template:
+                <select ng-model="ctrl.selectedTemplate" ng-required="true" ng-options="t as t.name for t in ctrl.Templates" ng-change="ctrl.Refresh()">
+                    <option>---Select tempalte ---</option>
+                </select>
+                <a ng-href="{{ctrl.AdminUrl}}" href="" target=" _blank" style="float: right;text-align: right;"> Manage templates</a>
+                <hr />
+            </div>
+             <div id="promoMsg" class="message-level-info " style="display:none; padding: 10px 20px; height: 36px; background-color: rgb(222, 236, 249);">
+                 <span class="message-level-icon bowtie-icon bowtie-status-info"></span>
+                 <span>Surface <b>more data easier</b> - Try out the new <a tabindex="0" class="feature-user-toggle-link" target="_blank" href="https://marketplace.visualstudio.com/items?itemName=mskold.mskold-PRO-EnhancedExport"> Enhanced Export PRO </a> version for <b>free</b>. </span>
+                
+                 <span id="promoMsg-close"class="close icon icon-close-small" style="float:right"></span>
+             </div>
+            <div id="previewHTML" class="preview">
+            </div>
+
+            <div id="footer" style="width:100%;text-align:right;height:60px;">
+                <hr />
+                
+                <button ng-click="ctrl.ExportHtml()">Open</button>
+                <button ng-click="ctrl.EmailHtml()" title="Email is curently not supported in extensions" ng-hide="true">Email</button>
+                <button ng-click="ctrl.PrintHtml()">Print</button>
+                <button ng-click="ctrl.CopyHtml2Clipboard()" title="Copies the rendered document to the clipboard">Copy</button>
+            </div>
+        </div>
+        <div class="wait-control-target"></div>
+    </div>
+    
+
+</body>
+</html>

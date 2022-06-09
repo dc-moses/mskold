@@ -1,0 +1,208 @@
+﻿<!--
+//---------------------------------------------------------------------
+// <copyright file="app.html">
+//    This code is licensed under the MIT License.
+//    THE SOFTWARE IS PROVIDED "AS IS", WITHOUT WARRANTY OF
+//    ANY KIND, EXPRESS OR IMPLIED, INCLUDING BUT NOT LIMITED
+//    TO THE WARRANTIES OF MERCHANTABILITY, FITNESS FOR A
+//    PARTICULAR PURPOSE AND NONINFRINGEMENT.
+// </copyright>
+// <summary>The html page for loading the app .</summary>
+//---------------------------------------------------------------------
+-->
+
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <title>Work Item Export</title>
+
+    <script type="text/javascript">
+        try {
+            var appInsights=window.appInsights||function(config){
+                function r(config){t[config]=function(){var i=arguments;t.queue.push(function(){t[config].apply(t,i)})}}var t={config:config},u=document,e=window,o="script",s=u.createElement(o),i,f;for(s.src=config.url||"//az416426.vo.msecnd.net/scripts/a/ai.0.js",u.getElementsByTagName(o)[0].parentNode.appendChild(s),t.cookie=u.cookie,t.queue=[],i=["Event","Exception","Metric","PageView","Trace"];i.length;)r("track"+i.pop());return r("setAuthenticatedUserContext"),r("clearAuthenticatedUserContext"),config.disableExceptionTracking||(i="onerror",r("_"+i),f=e[i],e[i]=function(config,r,u,e,o){var s=f&&f(config,r,u,e,o);return s!==!0&&t["_"+i](config,r,u,e,o),s}),t
+            }({
+                instrumentationKey: "363a8cbd-0d1d-4037-9007-9054cd1913d1"
+            });
+
+            window.appInsights=appInsights;
+        }
+        catch (ex) {
+            console.log("Error initializing appInsights: " + ex);
+            console.log("Nooping appInsights api");
+            var noop = function(m) { return function() { console.log("Ignoring appInsights methos call '" + m + "'"); }; };
+            window.appInsights = { trackEvent: noop("trackEvent"), setAuthenticatedUserContext: noop("setAuthenticatedUserContext"), trackPageView: noop("trackPageView"), trackEvent: noop("trackPageView") };
+        }
+
+    </script>
+</head>
+<body>
+    <div>The end user should never see the content on this page.</div>
+    
+    <script src="sdk/scripts/VSS.SDK.min.js"></script>
+
+    <script>
+
+        var showQueryExportMenuProvider = (function () {
+            "use strict";
+            return {
+                ExportWorkItemQueriesDialog: function (properties) {
+                    try {
+                        window.appInsights.trackEvent("EnhancedExport.ExportWorkItemQuery");
+                    }
+                    catch (ex) {
+
+                    }
+
+                    VSS.getService("ms.vss-web.dialog-service").then(function (dialogSvc) {
+
+                        var extInfo = VSS.getExtensionContext();
+
+
+
+                        var contributionConfig = {
+                            properties: properties,
+                            serviceName: 'WorkItemQueryService'
+                        };
+
+                        if (contributionConfig.properties.query == null) {
+                            contributionConfig.properties.query = { name: "Product backlog FAKE", path: "FAKE PATH", id: 587 };
+                        }
+
+                        var dialogOptions = {
+                            title: "Export Query - " + contributionConfig.properties.query.name + '  [ ' + contributionConfig.properties.query.path + ' ]',
+                            width: 1000,
+                            height: 700,
+                            buttons: null
+                        };
+                        dialogSvc.openDialog(extInfo.publisherId + "." + extInfo.extensionId + "." + "exportForm", dialogOptions, contributionConfig);
+                    });
+                },
+                execute: function (actionContext) {
+                    this.ExportWorkItemQueriesDialog(actionContext);
+                }
+            };
+        }());
+
+        var showTestPlanExportMenuProvider = (function () {
+            "use strict";
+            return {
+                ExportTestPlanDialog: function (properties) {
+                    try {
+                        window.appInsights.trackEvent("EnhancedExport.ExportTestPlan");
+                    }
+                    catch (ex) {
+
+                    }
+
+                    VSS.getService("ms.vss-web.dialog-service").then(function (dialogSvc) {
+
+                        var extInfo = VSS.getExtensionContext();
+
+
+                        var contributionConfig = {
+                            properties: properties,
+                            serviceName: 'TestPlanService'
+                        };
+                        contributionConfig.properties.testPlanId = properties.plan.id;
+                        contributionConfig.properties.teamProject = VSS.getWebContext().project.name;
+                        contributionConfig.properties.name = properties.plan.name;
+
+                        var dialogOptions = {
+                            title: "Export Testplan - " + contributionConfig.properties.name,
+                            width: 1000,
+                            height: 700,
+                            buttons: null
+                        };
+
+                        dialogSvc.openDialog(extInfo.publisherId + "." + extInfo.extensionId + "." + "exportForm", dialogOptions, contributionConfig);
+
+
+                    });
+                },
+                execute: function (actionContext) {
+                    this.ExportTestPlanDialog(actionContext); //  actionContext[0]["System.Title"]);
+                }
+            };
+        }());
+
+        var showTestSuiteExportMenuProvider = (function () {
+            "use strict";
+            return {
+                ExportTestSuiteDialog: function (properties) {
+                    try {
+                        window.appInsights.trackEvent("EnhancedExport.ExportTestPlan");
+                    }
+                    catch (ex) {
+
+                    }
+
+                    VSS.getService("ms.vss-web.dialog-service").then(function (dialogSvc) {
+
+                        var extInfo = VSS.getExtensionContext();
+
+
+                        var contributionConfig = {
+                            properties: properties,
+                            serviceName: 'TestPlanService'
+                        };
+                        contributionConfig.properties.testPlanId = properties.plan.id;
+                        contributionConfig.properties.startSuiteId = properties.suite.id;
+                        contributionConfig.properties.teamProject = VSS.getWebContext().project.name;
+                        contributionConfig.properties.name = properties.plan.name;
+
+                        var dialogOptions = {
+                            title: "Export TestSuite - " + contributionConfig.properties.suite.title,
+                            width: 1000,
+                            height: 700,
+                            buttons: null
+                        };
+
+                        dialogSvc.openDialog(extInfo.publisherId + "." + extInfo.extensionId + "." + "exportForm", dialogOptions, contributionConfig);
+
+
+                    });
+                },
+                execute: function (actionContext) {
+                    this.ExportTestSuiteDialog(actionContext); //  actionContext[0]["System.Title"]);
+                }
+            };
+        }());
+        console.log("VSS Init");
+        VSS.init({
+            usePlatformScripts: true,
+            usePlatformStyles: true
+                
+        });
+
+        VSS.register("TestPlanExport", function (context) {
+            return showTestPlanExportMenuProvider;
+        });
+        VSS.register("WorkItemExport", function (context) {
+            return showQueryExportMenuProvider;
+        });
+        VSS.register("TestSuiteExport", function (context) {
+            return showTestSuiteExportMenuProvider;
+        });
+
+        console.log("VSS.Ready - que");
+        VSS.ready(function () {
+
+            console.log("VSS.Ready -exe")
+            try {
+                window.appInsights.setAuthenticatedUserContext(
+                    VSS.getWebContext().user.id,
+                    VSS.getWebContext().collection.id);
+                window.appInsights.trackPageView("EnhancedExport.ExtensionLoad");
+            }
+            catch (ex) {
+                console.log(ex);
+            }
+
+
+        });
+        
+    </script>
+        
+</body>
+</html>
